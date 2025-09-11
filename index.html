@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard Offline</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f9; color: #333; }
+    header { background: #007bff; color: white; padding: 1rem; text-align: center; font-size: 1.5rem; font-weight: bold; }
+    .container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; padding: 1rem; }
+    .card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+    .card h3 { margin-top: 0; }
+    .form { margin: 1rem; padding: 1rem; background: #fff; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); }
+    input, button { padding: 0.6rem; border: 1px solid #ccc; border-radius: 6px; margin: 0.3rem; }
+    button { background: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    ul { list-style-type: none; padding-left: 0; }
+    li { margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+    li button { padding: 0.3rem 0.6rem; font-size: 0.8rem; border-radius: 6px; }
+    #carteiraDisplay { font-weight: bold; font-size: 1.2rem; margin-left: 1rem; display: inline-block; }
+    .btn-remover { background: #dc3545 !important; color: white !important; }
+    .btn-editar { background: #ffc107; color: #333; margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header>Dashboard Offline</header>
+
+  <div class="form">
+    <h3>Carteira</h3>
+    <span>Valor atual: <span id="carteiraDisplay">R$ 0,00</span></span>
+    <button class="btn-editar" onclick="editarCarteira()">Editar Carteira</button>
+  </div>
+
+  <div class="form">
+    <h3>Adicionar Renda Extra</h3>
+    <input type="text" id="nomeRenda" placeholder="Nome da renda" />
+    <input type="number" id="valorRenda" placeholder="Valor da renda" />
+    <button onclick="adicionarRenda()">Adicionar Renda</button>
+  </div>
+
+  <div class="form">
+    <h3>Adicionar Métrica (Gasto)</h3>
+    <input type="text" id="nomeGasto" placeholder="Nome do gasto" />
+    <input type="number" id="valorGasto" placeholder="Valor do gasto" />
+    <button onclick="adicionarGasto()">Adicionar Gasto</button>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h3>Rendas Extras</h3>
+      <ul id="listaRendas"></ul>
+    </div>
+    <div class="card">
+      <h3>Métricas (Gastos)</h3>
+      <ul id="listaMetricas"></ul>
+    </div>
+    <div class="card">
+      <h3>Gráfico dos Gastos</h3>
+      <canvas id="grafico"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    let metricas = JSON.parse(localStorage.getItem('metricas')) || [];
+    let rendas = JSON.parse(localStorage.getItem('rendas')) || [];
+    let valorCarteira = parseFloat(localStorage.getItem('carteira')) || 0;
+    let chart;
+
+    function salvarLocalStorage() {
+      localStorage.setItem('metricas', JSON.stringify(metricas));
+      localStorage.setItem('rendas', JSON.stringify(rendas));
+      localStorage.setItem('carteira', valorCarteira.toFixed(2));
+    }
+
+    function atualizarCarteira() {
+      const totalRendas = rendas.reduce((acc, r) => acc + r.valor, 0);
+      const totalGastos = metricas.reduce((acc, m) => acc + m.valor, 0);
+      document.getElementById('carteiraDisplay').textContent = `R$ ${(valorCarteira + totalRendas - totalGastos).toFixed(2).replace('.', ',')}`;
+      atualizarGrafico();
+    }
+
+    function atualizarListaRendas() {
+      const ul = document.getElementById('listaRendas');
+      ul.innerHTML = '';
+      rendas.forEach((r, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${r.nome}</strong>: R$ ${r.valor.toFixed(2).replace('.', ',')}
+          <button class="btn-editar" onclick="editarRenda(${i})">Editar</button>
+          <button class="btn-remover" onclick="removerRenda(${i})">Remover</button>`;
+        ul.appendChild(li);
+      });
+    }
+
+    function atualizarListaMetricas() {
+      const ul = document.getElementById('listaMetricas');
+      ul.innerHTML = '';
+      metricas.forEach((m, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${m.nome}</strong>: R$ ${m.valor.toFixed(2).replace('.', ',')}
+          <button class="btn-editar" onclick="editarGasto(${i})">Editar</button>
+          <button class="btn-remover" onclick="removerGasto(${i})">Remover</button>`;
+        ul.appendChild(li);
+      });
+    }
+
+    function adicionarRenda() {
+      const nome = document.getElementById('nomeRenda').value.trim();
+      const valor = parseFloat(document.getElementById('valorRenda').value);
+      if(!nome || isNaN(valor) || valor <= 0) return alert('Preencha corretamente!');
+      rendas.push({ nome, valor });
+      document.getElementById('nomeRenda').value = '';
+      document.getElementById('valorRenda').value = '';
+      salvarLocalStorage();
+      atualizarListaRendas();
+      atualizarCarteira();
+    }
+
+    function adicionarGasto() {
+      const nome = document.getElementById('nomeGasto').value.trim();
+      const valor = parseFloat(document.getElementById('valorGasto').value);
+      if(!nome || isNaN(valor) || valor <= 0) return alert('Preencha corretamente!');
+      metricas.push({ nome, valor });
+      document.getElementById('nomeGasto').value = '';
+      document.getElementById('valorGasto').value = '';
+      salvarLocalStorage();
+      atualizarListaMetricas();
+      atualizarCarteira();
+    }
+
+    function removerRenda(i) { rendas.splice(i,1); salvarLocalStorage(); atualizarListaRendas(); atualizarCarteira(); }
+    function removerGasto(i) { metricas.splice(i,1); salvarLocalStorage(); atualizarListaMetricas(); atualizarCarteira(); }
+
+    function editarRenda(i) {
+      const novoNome = prompt('Editar nome da renda', rendas[i].nome);
+      if(novoNome === null) return;
+      const novoValor = parseFloat(prompt('Editar valor da renda', rendas[i].valor));
+      if(isNaN(novoValor) || novoValor <= 0) return alert('Valor inválido!');
+      rendas[i] = { nome: novoNome, valor: novoValor };
+      salvarLocalStorage();
+      atualizarListaRendas();
+      atualizarCarteira();
+    }
+
+    function editarGasto(i) {
+      const novoNome = prompt('Editar nome do gasto', metricas[i].nome);
+      if(novoNome === null) return;
+      const novoValor = parseFloat(prompt('Editar valor do gasto', metricas[i].valor));
+      if(isNaN(novoValor) || novoValor <= 0) return alert('Valor inválido!');
+      metricas[i] = { nome: novoNome, valor: novoValor };
+      salvarLocalStorage();
+      atualizarListaMetricas();
+      atualizarCarteira();
+    }
+
+    function editarCarteira() {
+      const novoValor = parseFloat(prompt('Editar valor da carteira', valorCarteira));
+      if(isNaN(novoValor) || novoValor < 0) return alert('Valor inválido!');
+      valorCarteira = novoValor;
+      salvarLocalStorage();
+      atualizarCarteira();
+    }
+
+    function atualizarGrafico() {
+      const ctx = document.getElementById('grafico').getContext('2d');
+      if(chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: metricas.map(m => m.nome),
+          datasets: [{ label: 'Gastos', data: metricas.map(m => m.valor), backgroundColor: '#007bff' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // Inicialização
+    atualizarListaRendas();
+    atualizarListaMetricas();
+    atualizarCarteira();
+  </script>
+</body>
+</html>
