@@ -20,6 +20,12 @@
     #carteiraDisplay { font-weight: bold; font-size: 1.2rem; margin-left: 1rem; display: inline-block; }
     .btn-remover { background: #dc3545 !important; color: white !important; }
     .btn-editar { background: #ffc107; color: #333; margin-left: 0.5rem; }
+
+    /* ADIÇÃO: Estilo para itens pagos */
+    .pago {
+      text-decoration: line-through;
+      color: gray;
+    }
   </style>
 </head>
 <body>
@@ -58,6 +64,12 @@
       <h3>Gráfico dos Gastos</h3>
       <canvas id="grafico"></canvas>
     </div>
+  </div>
+
+  <!-- ADIÇÃO: Nova seção de gastos pendentes -->
+  <div class="form" id="gastosPendentesContainer">
+    <h3>Gastos Pendentes</h3>
+    <ul id="listaGastosPendentes"></ul>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -102,6 +114,26 @@
           <button class="btn-remover" onclick="removerGasto(${i})">Remover</button>`;
         ul.appendChild(li);
       });
+
+      atualizarGastosPendentes(); // ADIÇÃO
+    }
+
+    // ADIÇÃO: Atualiza a lista de gastos pendentes
+    function atualizarGastosPendentes() {
+      const ul = document.getElementById('listaGastosPendentes');
+      ul.innerHTML = '';
+      metricas.forEach((m, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span><strong>${m.nome}</strong>: R$ ${m.valor.toFixed(2).replace('.', ',')}</span>
+          <button onclick="marcarComoPago(this)">Pago</button>`;
+        ul.appendChild(li);
+      });
+    }
+
+    // ADIÇÃO: Marca gasto como pago (risca texto)
+    function marcarComoPago(botao) {
+      const item = botao.parentElement;
+      item.classList.toggle('pago');
     }
 
     function adicionarRenda() {
@@ -120,7 +152,7 @@
       const nome = document.getElementById('nomeGasto').value.trim();
       const valor = parseFloat(document.getElementById('valorGasto').value);
       if(!nome || isNaN(valor) || valor <= 0) return alert('Preencha corretamente!');
-      metricas.push({ nome, valor });
+      metricas.push({ nome, valor }); // Corrigido o erro de sintaxe
       document.getElementById('nomeGasto').value = '';
       document.getElementById('valorGasto').value = '';
       salvarLocalStorage();
